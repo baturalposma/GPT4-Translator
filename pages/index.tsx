@@ -70,6 +70,8 @@ const Home: NextPage<Props> = ({}) => {
       }),
     }).then((res) => res.json())
 
+    console.log(res);
+
     if (!res.success) {
       toast.error(res.error)
 
@@ -87,7 +89,7 @@ const Home: NextPage<Props> = ({}) => {
     <div className='w-full flex flex-col items-center'>
       <Toaster />
       <div className='flex items-center flex-col mb-12'>
-        <h1 className='text-8xl text-center font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600 my-6 '>
+        <h1 className='text-5xl text-center font-extrabold text-white my-6 '>
           DigiFist Translator
         </h1>
         <div className='w-[400px]'>
@@ -96,7 +98,7 @@ const Home: NextPage<Props> = ({}) => {
             onChange={(e) => setOpenaiKey(e.target.value)}
             label='OpenAi Key'
             className='mb-4'
-            placeholder='Paste your OpenAi Key here if you did not use a .env file'
+            placeholder='Enter OpenAi Key'
           />
           <Select
             className='!w-full'
@@ -108,7 +110,7 @@ const Home: NextPage<Props> = ({}) => {
             }}
             options={[
               { label: 'Translate', value: 'translate' },
-              { label: 'Fill Empty JSON file', value: 'fillEmpty' },
+              // { label: 'Fill Empty JSON file', value: 'fillEmpty' },
             ]}
             value={mode}
           />

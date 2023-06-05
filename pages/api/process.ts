@@ -51,7 +51,7 @@ export const translateKey = async ({
     messages: [
       {
         content:
-          'You are a bot that translates the values of a locales JSON. The user provides you a JSON with a field named "inputLanguage", which defines the language the values of the JSON are defined in. It also has a field named "outputLanguage", which defines the language you should translate the values to. The last field is named "data", which includes the object with the values to translate. The keys of the values should never be changed. You output only a JSON, which has the same keys as the input, but with translated values. I give you an example input: {"inputLanguage": "English", outputLanguage: "German", "keys": {"hello": "Hello", "world": "World"}}. The output should be {"hello": "Hallo", "world": "Welt"}.',
+          `Translate the following English text to ${outputLanguage}`,
         role: 'system',
       },
       {
@@ -68,22 +68,14 @@ export const translateKey = async ({
   return completion.data.choices[0].message.content
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (
-    !req.body.text ||
-    !req.body.inputLanguage ||
-    !req.body.outputLanguage ||
-    !req.body.mode
-  ) {
-    res.status(400).json({ error: 'Please provide all required parameters' })
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!req.body.text || !req.body.inputLanguage || !req.body.outputLanguage || !req.body.mode) {
+    res.status(400).json({ error: 'Lütfen gerekli tüm parametreleri sağlayın' })
     return
   }
 
   if (!Boolean(process.env.OPENAI_KEY) && !req.body.key) {
-    res.status(400).json({ error: 'Please provide an OpenAI API key' })
+    res.status(400).json({ error: 'Lütfen bir OpenAI API anahtarı sağlayın' })
     return
   }
 
@@ -93,69 +85,43 @@ export default async function handler(
 
   const openai = new OpenAIApi(configuration)
 
-  const localesObject = JSON.parse(req.body.text as string)
-
-  //split localesObject into an array of objects with 30 keys each
-  const keys = Object.keys(localesObject)
-  const values = Object.values(localesObject)
-  const chunks = keys.reduce((resultArray, item, index) => {
-    const chunkIndex = Math.floor(index / 30)
-
-    if (!resultArray[chunkIndex]) {
-      resultArray[chunkIndex] = []
-    }
-
-    resultArray[chunkIndex].push({ [item]: values[index] })
-
-    return resultArray
-  }, [])
-
-  let results
+  let data
   try {
-    results = await Promise.all(
-      chunks.map(async (chunk) => {
-        if (req.body.mode === 'fillEmpty') {
-          return fillKeys({
-            object: Object.assign({}, ...chunk),
-            inputLanguage: req.body.inputLanguage as string,
-            outputLanguage: req.body.outputLanguage as string,
-            openai,
-          })
-        } else {
-          return translateKey({
-            object: Object.assign({}, ...chunk),
-            inputLanguage: req.body.inputLanguage as string,
-            outputLanguage: req.body.outputLanguage as string,
-            openai,
-          })
-        }
+    data = JSON.parse(req.body.text)
+  } catch (error) {
+    res.status(400).json({ error: 'Geçersiz JSON formatı' })
+    return
+  }
+
+  const formattedData = JSON.stringify(data)
+
+  let result
+  try {
+    if (req.body.mode === 'fillEmpty') {
+      result = await fillKeys({
+        object: formattedData,
+        inputLanguage: req.body.inputLanguage as string,
+        outputLanguage: req.body.outputLanguage as string,
+        openai,
       })
-    )
+    } else {
+      result = await translateKey({
+        object: formattedData,
+        inputLanguage: req.body.inputLanguage as string,
+        outputLanguage: req.body.outputLanguage as string,
+        openai,
+      })
+    }
   } catch (error) {
     res.send({
       success: false,
-      error: "The request couldn't be processed. Maybe the API key is invalid?",
+      error: 'İstek işlenemedi. API anahtarı geçersiz olabilir.',
     })
     return
   }
-
-  let parsedResults
-
-  try {
-    parsedResults = results.map((result) => JSON.parse(result))
-  } catch (error) {
-    res.send({
-      success: false,
-      error: "The result couldn't be parsed. Please try again.",
-    })
-    console.log(res)
-    return
-  }
-
-  const finalResult = Object.assign({}, ...parsedResults)
 
   res.send({
     success: true,
-    data: finalResult,
+    data: result,
   })
 }
